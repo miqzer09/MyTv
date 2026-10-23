@@ -1,0 +1,46 @@
+# Panasonic 4KTV-0SU (SW4H, MediaTek MT7332 / m7332), Android TV 10 (API 29), build QTG3.200617.002
+# 2 GB RAM / 8 GB flash. Skyworth-built Panasonic platform with a com.smartdevice.* OEM layer.
+# TH-55HX655K; written from the live package list on 2026-10-23.
+#
+# Stock launcher:  com.google.android.tvlauncher
+# Live TV app:     com.smartdevice.livetv            (Panasonic's TV UI; keep it, the Inputs menu opens it)
+# Remote service:  com.google.android.tv.remote.service  (Bluetooth remote pairing - NEVER disable)
+# Cast target:     com.google.android.apps.mediashell    (Chromecast built-in - keep)
+# Assistant:       com.google.android.katniss            (mic button / voice search - keep)
+# Never disable any com.mediatek.* or com.mstar.* package: they are the tuner, input and HDMI stack
+# (including com.mstar.android.tv.disclaimercustomization, the boot disclaimer screen).
+#
+# Apply:   TV_HOST=<tv ip> tools\disable.ps1 examples\panasonic-4ktv-0su\debloat.txt
+# Undo:   TV_HOST=<tv ip> tools\restore.ps1 examples\panasonic-4ktv-0su\debloat.txt
+# Everything is DISABLED, not uninstalled. Comment out any line you want to keep.
+#
+# Status: new list for one untested model, applied in three batches with a check after each.
+# Re-enable anything you miss with: pm enable <pkg>.
+
+# Batch 1 - Google telemetry and background services no TV needs
+com.google.android.feedback
+com.google.android.partnersetup
+com.google.android.onetimeinitializer
+com.google.android.syncadapters.calendar
+com.android.providers.calendar
+com.android.printspooler
+com.android.htmlviewer
+com.android.backupconfirm
+com.android.sharedstoragebackup
+com.android.wallpaperbackup
+
+# Batch 2 - recommendation / ad rows and setup leftovers
+com.google.android.tvrecommendations
+com.google.android.backdrop                 # ambient-mode screensaver; Glass TV has its own clock
+com.google.android.leanbacklauncher.partnercustomizer
+com.smartdevice.leanbacklauncher.customizer
+com.smartdevice.recommendation              # OEM content rows / ads
+com.smartdevice.acr.recommendation          # ACR: watches what you play to target those rows
+com.google.android.tv.bugreportsender       # TV bug-report sender
+com.google.android.tungsten.setupwraith     # Google TV setup wizard; re-enable before a factory-style re-setup
+
+# Batch 3 - streaming apps the owner approved disabling on 2026-10-23
+com.amazon.amazonvideo.livingroom   # Prime Video
+com.google.android.videos           # Google TV movies
+com.google.android.play.games       # Play Games
+com.google.android.youtube.tvmusic  # YouTube Music

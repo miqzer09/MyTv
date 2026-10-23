@@ -1,0 +1,13 @@
+{
+  "dock_apps": [
+    "com.google.android.youtube.tv",
+    "com.netflix.ninja",
+    "com.spotify.tv.android",
+    "com.amarullz.androidtv.animetvjmto",
+    "com.lagradost.cloudstream3",
+    "my.gov.rtm.tv"
+  ],
+  "columns": 6,
+  "reduced_motion": true,
+  "cache_clean_days": 7
+}

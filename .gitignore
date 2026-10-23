@@ -9,6 +9,9 @@ launcher/local.properties
 backup/
 .DS_Store
 
+# Large SDK/binaries that must never be committed
+.tools/
+
 # App banners for the webOS simulator preview only: other companies' logos, kept out of the repository.
 webos/samples/
 *.ipk
