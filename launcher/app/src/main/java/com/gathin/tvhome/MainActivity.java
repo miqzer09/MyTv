@@ -60,6 +60,8 @@ import androidx.dynamicanimation.animation.SpringForce;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -942,6 +944,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         int color = adapter.ambientColorAt(position);
         heroBottom = dockTopInRoot - HERO_GAP_DP * density;
         float y = heroBottom - heroShelf.getHeight();
+        // The shelf is shown near the top-left, and the weather card's natural home is on the right,
+        // above the dock. If the name is short enough to leave the right side free on the name's line,
+        // the card sits there beside it; otherwise it waits above the dock, where it never runs into
+        // a long name.
         boolean changed = !label.contentEquals(heroName.getText());
 
         if (reducedMotion) {
@@ -1006,9 +1012,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (inner <= 0 || COLUMNS <= 0) return;
         // One cell is a tile plus its breathing room, so three cells read as three dock tiles.
         int want = WEATHER_TILES * (inner / COLUMNS) - (int) (8 * density);
-        // The card lives to the right of the name, so the name may not be allowed the room it needs:
-        // a name long enough to reach the card would push it back over the words. Cap the name a
-        // card's width short of the right edge instead. The width is known here and only here (the
+        // The card lives above the dock on the right. When the name is short enough to leave that
+        // corner free, the card sits on the name's line beside it; otherwise it stays above the dock,
+        // clear of the name. The width is known here and only here (the
         // grid's layout listener is what measures the grid), so the cap belongs in this method.
         if (heroName != null && heroShelf != null && heroShelf.getWidth() > 0) {
             // Measured from the shelf's own left edge, not the screen's: the shelf sits behind a
@@ -1034,40 +1040,42 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     /**
-     * The weather card lives on the place-name's line, to its right: it starts just past the name
-     * and is centred on that line, so it travels with the shelf and never covers the words.
+     * The weather card lives on the right edge of the screen, just above the glass dock: it is
+     * pinned to the right margin and sits above the dock row, so it never covers the name or the
+     * tiles and stays put while the shelf slides between places.
      *
-     * The name's own max width is capped a card's width short of the right edge (sizeWeatherCard), so the
-     * card normally fits with room to spare. The clamp below is only a backstop for a name that
-     * still overruns: it never pulls the card back over the name, because that is the bug it exists
-     * to prevent — it slides the card up to sit under the name instead.
+     * The card's width is set by sizeWeatherCard (three grid cells). Its right edge is one screen
+     * margin in from the edge; its top is the dock's top minus the card height and a small gap, so
+     * it sits above the dock. When the name is long enough to leave no room on its own line, the
+     * card would be drawn over the words; in that case it stays above the dock instead, where it is
+     * always visible and never collides with the name.
      */
     private void placeWeatherCard() {
         if (weatherCard == null || heroShelf == null || heroName == null) return;
         if (weatherCard.getHeight() == 0) return;   // not measured yet
-        // The name's laid-out width, falling back to its paint's measurement when the text was
-        // set this same frame (getWidth() still reports the previous width then).
-        int nameW = heroName.getWidth();
-        if (nameW == 0) nameW = Math.round(heroName.getPaint().measureText(heroName.getText().toString()));
-        if (nameW == 0) return;
-        float x = heroShelf.getX() + nameW + 18 * density;
-        // just past the name
-        float maxX = root.getWidth() - weatherCard.getWidth() - 56 * density;
-        if (x > maxX) x = Math.max(55 * density, maxX);
-        float y = heroShelf.getY() + heroName.getHeight() / 2f - weatherCard.getHeight() / 2f;
-        // A card whose left edge lands inside the name would be drawn over the words. The name is
-        // capped short of this room, so it only happens when a name still overruns the cap; drop
-        // the card below the name's line rather than over it.
-        float nameRight = heroShelf.getX() + nameW;
-        if (x < nameRight + 18 * density) {
-            x = Math.max(55 * density, Math.min(x, maxX));
-            y = heroShelf.getY() + heroName.getHeight() + 12 * density;
-        }
+        // Dock top in root coordinates: the grid's top padding is the dock row, and the tiles
+        // below it start there. The dock top is the same value showHero receives as
+        // dockTopInRoot, recomputed here from the grid so the card tracks the dock exactly.
+        int h = grid.getHeight();
+        if (h <= 0) return;
+        int inner = grid.getWidth() - grid.getPaddingLeft() - grid.getPaddingRight();
+        if (inner <= 0 || COLUMNS <= 0) return;
+        int itemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(AppAdapter.tileWidthPx(inner, COLUMNS, density)), density);
+        float dockTop = grid.getPaddingTop();   // the dock row's top in the grid = the grid's paddingTop
+        // Right edge: one screen margin in from the right.
+        float rightMargin = 56 * density;
+        float x = root.getWidth() - weatherCard.getWidth() - rightMargin;
+        // Top: just above the dock, with a small gap.
+        float gap = 12 * density;
+        float topLimit = dockTop - weatherCard.getHeight() - gap;
+        // The card's natural home is above the dock on the right. The name is on the shelf's line near
+        // the top-left, so it never reaches the right side; there is nothing on the right for the card
+        // to dodge, and there is no name line worth crossing.
         weatherCard.setX(x);
-        weatherCard.setY(y);
-        android.util.Log.i("WxPlace", "shelfX=" + heroShelf.getX() + " nameW=" + nameW
-                + " cardW=" + weatherCard.getWidth() + " rootW=" + root.getWidth()
-                + " -> x=" + x + " maxX=" + maxX);
+        weatherCard.setY(topLimit);
+        android.util.Log.i("WxPlace", "dockTop=" + dockTop + " cardH=" + weatherCard.getHeight()
+                + " rootW=" + root.getWidth() + " cardW=" + weatherCard.getWidth()
+                + " -> x=" + x + " y=" + topLimit);
     }
 
     /**

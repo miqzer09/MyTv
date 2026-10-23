@@ -15,3 +15,6 @@ backup/
 # App banners for the webOS simulator preview only: other companies' logos, kept out of the repository.
 webos/samples/
 *.ipk
+
+# TV screenshots taken during layout tuning; replace with a real reading before committing.
+wx_screenshot.png
