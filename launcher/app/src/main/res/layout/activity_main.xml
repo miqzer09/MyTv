@@ -12,6 +12,16 @@
         android:layout_height="match_parent"
         android:alpha="0" />
 
+    <!-- Weather across the screen (rain, snow, lightning) during real weather; behind the tiles
+         and the glass, so it lives in the picture and never covers the apps. Shown and driven by
+         WeatherFxView.setEffect, from the reading Home already has. -->
+    <com.gathin.tvhome.WeatherFxView
+        android:id="@+id/weatherFx"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        android:importantForAccessibility="no" />
+
     <!-- Top shelf: the place's name, its country and what it is about, positioned above the dock in code.
          The width is capped in code to a share of the space between the side paddings, so the
          description wraps in a column instead of running the width of the screen. -->
@@ -68,6 +78,22 @@
             android:ellipsize="end"
             android:visibility="gone" />
     </LinearLayout>
+
+    <!-- Live weather (config weather): a glass card with the reading now, an animated condition
+         picture and the hours and days ahead. It sits to the right of the place's name on the same
+         line (positioned in code, MainActivity.placeWeatherCard), so it travels and fades with the
+         name rather than sitting under the clock; hidden until the first fetch lands. Its glass is a
+         GlassDrawable, set by Home like the pills'. Width is a block of grid cells (MainActivity
+         sizeWeatherCard). -->
+    <com.gathin.tvhome.WeatherCardView
+        android:id="@+id/weatherCard"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingStart="2dp"
+        android:paddingEnd="2dp"
+        android:focusable="false"
+        android:visibility="gone"
+        android:importantForAccessibility="no" />
 
     <LinearLayout
         android:layout_width="match_parent"

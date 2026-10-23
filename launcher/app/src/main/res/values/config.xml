@@ -78,4 +78,17 @@
          tiles that zoom without overshoot, shorter fades and no tile entrance when Home comes back. Set it
          here or with "reduced_motion": true in a theme's config.json; false keeps the normal motion. -->
     <bool name="reduced_motion">false</bool>
+
+    <!-- Live weather under the clock: a glass card with an animated condition picture, the
+         temperature, today's high and low, the hours ahead and the days ahead — and rain, snow or
+         lightning across the screen when the weather says so (calmed by reduced_motion). The place
+         comes once from the TV's public IP (no GPS on a TV) — or from weather_city below, when
+         set — and is kept; data is Open-Meteo's free forecast, no key. Refreshes every 30 minutes
+         while Home is in front. false hides it. -->
+    <bool name="weather">true</bool>
+
+    <!-- Fixed place for the weather card instead of the TV's public IP: any town name, geocoded
+         once (Open-Meteo, no key) and kept, e.g. "Petaling Jaya". The unit follows the resolved
+         country. Empty uses the IP lookup. Same key in a theme's config.json (weather_city). -->
+    <string name="weather_city" translatable="false"></string>
 </resources>

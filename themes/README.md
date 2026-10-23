@@ -43,6 +43,8 @@ is ignored, and a file that doesn't parse is ignored as a whole, so a theme can 
 | `wallpaper_minutes` | 0 to 1440 | Minutes between pictures when the theme has a `wallpapers/` folder; 0 changes only when Home starts. Default 30 |
 | `cache_clean_days` | 0 to 90 | Days between clearing the TV's app caches, which the TV does itself (default 15); `0` turns it off. See [docs/cache-clean.md](../docs/cache-clean.md) |
 | `places` | bool | Pictures of places to visit (Bing's daily images, no key), renewed weekly with last week's deleted, each named with its country and a few lines about it; pictures with people in them are skipped. On by default, and they replace the theme's own pictures. `false`: the theme's own pictures, and the launcher never goes online |
+| `weather` | bool | Live weather under the clock: a glass card whose condition picture moves (the sun turns, clouds drift, rain and snow fall, lightning flickers), with the temperature, today's high and low, the hours and days ahead — and rain, snow or a flash of lightning across the screen during the real thing (Open-Meteo, no key; the place comes once from the TV's public IP and is kept, or from `weather_city` below). Refreshes every 30 minutes; `reduced_motion` calms the screen effects. `false` hides it all |
+| `weather_city` | string | Fixed place for the weather card instead of the TV's public IP: any town name, geocoded once (Open-Meteo, no key) and kept, e.g. `"Petaling Jaya"`. The unit follows the resolved country. Empty (the default) uses the IP lookup |
 
 ## Wallpapers
 

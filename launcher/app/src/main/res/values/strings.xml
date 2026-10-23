@@ -44,4 +44,19 @@
     <string name="card_state_new_label">New name</string>
     <string name="tile_move">Move</string>
     <string name="tile_app_info">App info</string>
+    <!-- Weather conditions, the WMO codes Open-Meteo returns (see Weather.java). -->
+    <string name="wx_clear">Clear</string>
+    <string name="wx_mainly_clear">Mainly clear</string>
+    <string name="wx_partly_cloudy">Partly cloudy</string>
+    <string name="wx_overcast">Overcast</string>
+    <string name="wx_fog">Fog</string>
+    <string name="wx_drizzle">Drizzle</string>
+    <string name="wx_rain">Rain</string>
+    <string name="wx_freezing_rain">Freezing rain</string>
+    <string name="wx_snow">Snow</string>
+    <string name="wx_snow_grains">Snow grains</string>
+    <string name="wx_showers">Rain showers</string>
+    <string name="wx_snow_showers">Snow showers</string>
+    <string name="wx_thunder">Thunderstorm</string>
+    <string name="wx_hail">Thunderstorm with hail</string>
 </resources>

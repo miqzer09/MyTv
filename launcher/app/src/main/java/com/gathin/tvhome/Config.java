@@ -64,6 +64,10 @@ final class Config {
     final boolean places;
     /** Days between clearing the TV's app caches (see CacheCleaner); 0 never does. */
     final int cacheCleanDays;
+    /** Live weather under the clock (config.xml, weather): "weather": false hides it. */
+    final boolean weather;
+    /** Fixed place for the weather card (config.xml, weather_city); empty uses the TV's public IP. */
+    final String weatherCity;
     /** Whether the overlay file was present and parsed. */
     final boolean overlayApplied;
 
@@ -74,7 +78,7 @@ final class Config {
                    boolean showHomeSettingsShortcut, boolean showNetworkPill, boolean showLiveTv,
                    int backgroundColor,
                    File wallpaper, List<File> wallpapers, long wallpaperIntervalMs,
-                   boolean places, int cacheCleanDays, boolean overlayApplied) {
+                   boolean places, int cacheCleanDays, boolean weather, String weatherCity, boolean overlayApplied) {
         this.dockApps = Collections.unmodifiableList(dockApps);
         this.hiddenApps = Collections.unmodifiableList(hiddenApps);
         this.liveTvPackage = liveTvPackage;
@@ -97,6 +101,8 @@ final class Config {
         this.wallpaperIntervalMs = wallpaperIntervalMs;
         this.places = places;
         this.cacheCleanDays = cacheCleanDays;
+        this.weather = weather;
+        this.weatherCity = weatherCity;
         this.overlayApplied = overlayApplied;
     }
 
@@ -121,9 +127,10 @@ final class Config {
         boolean reducedMotion = res.getBoolean(R.bool.reduced_motion);
         String vpn = res.getString(R.string.vpn_app).trim();
         boolean homeSettings = res.getBoolean(R.bool.show_home_settings_shortcut);
-        boolean networkPill = res.getBoolean(R.bool.show_network_pill);
-        boolean liveTvRow = res.getBoolean(R.bool.show_live_tv);
-        int background = 0xFF000000;
+        boolean networkPill = res.getBoolean(R.bool.show_network_pill);            boolean liveTvRow = res.getBoolean(R.bool.show_live_tv);
+            boolean weather = res.getBoolean(R.bool.weather);
+            String weatherCity = res.getString(R.string.weather_city).trim();
+            int background = 0xFF000000;
         boolean applied = false;
 
         File dir = dir(ctx);
@@ -147,6 +154,8 @@ final class Config {
             homeSettings = bool(json, "show_home_settings_shortcut", homeSettings);
             networkPill = bool(json, "show_network_pill", networkPill);
             liveTvRow = bool(json, "show_live_tv", liveTvRow);
+            weather = bool(json, "weather", weather);
+            weatherCity = string(json, "weather_city", weatherCity);
             background = color(json, "background_color", background);
         }
         File wallpaper = dir != null ? new File(dir, WALLPAPER_NAME) : null;
@@ -174,7 +183,7 @@ final class Config {
         return new Config(dock, hidden, liveTv, liveTvAction, panelService, panelAction, inputAction,
                 Math.max(1, columns), Math.max(0, rowsBelow), shamsi, moduleCards, reducedMotion,
                 vpn, homeSettings, networkPill, liveTvRow, background, wallpaper, wallpapers, wallpaperIntervalMs,
-                places, cacheCleanDays, applied);
+                places, cacheCleanDays, weather, weatherCity, applied);
     }
 
     /** Reads and parses the overlay; any problem means "no overlay", never a crash on the home screen. */

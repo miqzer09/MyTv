@@ -130,6 +130,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private TextView shamsiDate;
     private boolean shamsi;
     private String vpnApp;
+    /** Live weather under the clock (config weather): the glass card, its screen effects, one fetch at a time. */
+    private boolean weatherEnabled;
+    /** The theme's fixed place for the card (config weather_city); empty: the TV's public IP. */
+    private String weatherCity = "";
+    /** The card's width in grid cells: a 3x1 block under the clock, not the full row. */
+    private static final int WEATHER_TILES = 3;
+    private WeatherCardView weatherCard;
+    private WeatherFxView weatherFx;
+    private volatile boolean weatherRefreshRunning;
     private SpringAnimation springX, springY;
     private float glassTargetX, glassTargetY;
     // How far the grid has scrolled the glass. springY works without it, in grid content space, so a
@@ -233,6 +242,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             updateShamsiDate();
             updateWifiLabel();
             refreshPlacesIfDue();
+            refreshWeatherIfDue();
             handler.postDelayed(this, MINUTE_MS);
         }
     };
@@ -288,6 +298,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // the height it happened to have beforehand is what let a tall block run into the dock.
         heroShelf.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, orr, ob) -> {
             if (heroBottom > 0) v.setY(heroBottom - v.getHeight());
+            placeWeatherCard();   // the name resized; the card sits beside it
         });
         btnWifi = findViewById(R.id.btnWifi);
         if (!cfg.showNetworkPill) btnWifi.setVisibility(View.GONE);
@@ -316,6 +327,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         vpnApp = cfg.vpnApp;
         moduleCards = cfg.moduleCards;
         hiddenApps = new HashSet<>(cfg.hiddenApps);
+        weatherEnabled = cfg.weather;
+        weatherCity = cfg.weatherCity;
+        if (weatherEnabled) {
+            weatherCard = findViewById(R.id.weatherCard);
+            weatherFx = findViewById(R.id.weatherFx);
+            // The last reading is on screen at once; a due refresh runs behind it.
+            Weather.Data cached = Weather.load(this);
+            if (cached != null) showWeather(cached);
+            refreshWeatherIfDue();
+        }
 
         grid = findViewById(R.id.grid);
         grid.setLayoutManager(new GridLayoutManager(this, COLUMNS) {
@@ -355,6 +376,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 if (has) moveTopHighlight(v);
             });
         }
+        if (weatherEnabled) {
+            // The card's glass, like the pills': the blurred wallpaper behind an even veil. It is
+            // never focused, so it passes the glider by (null) and keeps its glass at full strength.
+            weatherCard.setBackground(new GlassDrawable(weatherCard, 26 * density, density, null, 0.5f));
+            Backdrop.watch(weatherCard);
+            // Re-placed whenever it is measured: the width follows the grid, the height its own
+            // narrow-or-wide layout, and both change under it.
+            weatherCard.addOnLayoutChangeListener(
+                    (v, l, t, r, b, ol, ot, orr, ob) -> placeWeatherCard());
+        }
         // The apps rise into place on the first launch after the TV starts, and only then. Setting
         // the animation arms it for the grid's first draw, so on any later fresh start (Android
         // closing Home while an app was open) it is not set at all: armed, it drew the dock's tray
@@ -374,6 +405,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         grid.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             parkDock();
             updateTopFade();
+            sizeWeatherCard();
         });
 
         // Rows feather out under the top bar instead of being cut off. The fade needs an offscreen
@@ -610,6 +642,33 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }, "place-wallpapers").start();
     }
 
+    /**
+     * Shows the weather when Home starts and refreshes it every 30 minutes (Weather.due), always
+     * off the main thread; a failed fetch leaves the last reading on screen.
+     */
+    private void refreshWeatherIfDue() {
+        if (!weatherEnabled || weatherRefreshRunning || !Weather.due(this, weatherCity)) return;
+        weatherRefreshRunning = true;
+        new Thread(() -> {
+            Weather.Data data = Weather.refresh(getApplicationContext(), weatherCity);
+            handler.post(() -> {
+                weatherRefreshRunning = false;
+                if (data == null || isDestroyed()) return;
+                showWeather(data);
+            });
+        }, "weather").start();
+    }
+
+    /** Hands a reading to the card and the screen behind it: rain, snow or lightning when the
+     * weather says so, and nothing the rest of the time. */
+    private void showWeather(Weather.Data data) {
+        weatherCard.setReading(data);
+        // The card appears on the name's line only while the shelf is up; with it hidden, the
+        // reading waits until the shelf comes back.
+        if (heroShown) showWeatherCard(true);
+        weatherFx.setEffect(data.fx, reducedMotion);
+    }
+
     /** Clears the TV's app caches when due, once Home has sat idle on screen for a while. */
     private final Runnable cacheClean = () -> {
         if (hasWindowFocus() && config != null) CacheCleaner.maybeRun(this, config.cacheCleanDays);
@@ -672,6 +731,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         updateWifiLabel();
         updateInputsButton();
         startWallpaperRotation();
+        refreshWeatherIfDue();
         handler.postDelayed(minuteTick, MINUTE_MS);
         handler.removeCallbacks(cacheClean);
         handler.postDelayed(cacheClean, CacheCleaner.IDLE_MS);
@@ -894,6 +954,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             heroShelf.setAlpha(1f);
             showAmbient(color);
             heroShown = true;
+            showWeatherCard(true);
             return;
         }
 
@@ -908,6 +969,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             else heroShelf.animate().alpha(1f).setDuration(260).start();
             showAmbient(color);
             heroShown = true;
+            showWeatherCard(true);
         } else if (changed) {
             heroShelf.animate().alpha(0f).translationX(-12 * density).setDuration(120).withEndAction(() -> {
                 setHeroText(label, where, desc);
@@ -916,11 +978,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 heroShelf.animate().alpha(1f).translationX(0f).setDuration(200).start();
             }).start();
             showAmbient(color);
+            // The card crosses with the words: out with the old name, back on beside the new one.
+            showWeatherCard(false);
+            heroShelf.postDelayed(() -> showWeatherCard(true), reducedMotion ? 0 : 130);
         } else {
             // Same words, different app: every dock app shares the place's name, so the colour has
             // to follow focus on its own rather than ride along with a change of text.
             heroShelf.setY(y);
             showAmbient(color);
+            placeWeatherCard();
         }
     }
 
@@ -929,6 +995,103 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      * right edge of the last dock card, and Inputs follows on its left. Card width follows the
      * column count and the screen, so the edge is measured rather than written down.
      */
+    /**
+     * The weather card is a block of grid cells under the clock rather than the full row: one cell
+     * is a tile plus its breathing room, so WEATHER_TILES cells read as that many dock tiles at any
+     * column count. Runs from the grid's layout listener, which has the widths it needs.
+     */
+    private void sizeWeatherCard() {
+        if (weatherCard == null || grid == null) return;
+        int inner = grid.getWidth() - grid.getPaddingLeft() - grid.getPaddingRight();
+        if (inner <= 0 || COLUMNS <= 0) return;
+        // One cell is a tile plus its breathing room, so three cells read as three dock tiles.
+        int want = WEATHER_TILES * (inner / COLUMNS) - (int) (8 * density);
+        // The card lives to the right of the name, so the name may not be allowed the room it needs:
+        // a name long enough to reach the card would push it back over the words. Cap the name a
+        // card's width short of the right edge instead. The width is known here and only here (the
+        // grid's layout listener is what measures the grid), so the cap belongs in this method.
+        if (heroName != null && heroShelf != null && heroShelf.getWidth() > 0) {
+            // Measured from the shelf's own left edge, not the screen's: the shelf sits behind a
+            // marginStart, so its right edge is what the card has to clear. Cap the name short of
+            // the right edge by the card's width and the gap between them.
+            int room = getResources().getDisplayMetrics().widthPixels - (int) heroShelf.getX()
+                    - want - (int) (20 * density);
+            if (room > 0) heroName.setMaxWidth(Math.min(heroNameMaxWidth, room));
+            android.util.Log.i("WxPlace", "size room=" + room + " heroNameMax=" + heroNameMaxWidth
+                    + " applied=" + heroName.getMaxWidth() + " shelfX=" + heroShelf.getX()
+                    + " want=" + want);
+        }
+        ViewGroup.LayoutParams lp = weatherCard.getLayoutParams();
+        if (lp == null) return;
+        // Keep the card's real LayoutParams (now a FrameLayout.LayoutParams, the card being a
+        // root child beside the place's name). Only the width is set here, and it must be applied
+        // outside the grid's layout pass: a relayout request made during layout is dropped on
+        // some TVs (MediaTek Android 10 among them). The card re-places itself when it lays out.
+        lp.width = want;
+        lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+        final ViewGroup.LayoutParams apply = lp;
+        weatherCard.post(() -> weatherCard.setLayoutParams(apply));
+    }
+
+    /**
+     * The weather card lives on the place-name's line, to its right: it starts just past the name
+     * and is centred on that line, so it travels with the shelf and never covers the words.
+     *
+     * The name's own max width is capped a card's width short of the right edge (sizeWeatherCard), so the
+     * card normally fits with room to spare. The clamp below is only a backstop for a name that
+     * still overruns: it never pulls the card back over the name, because that is the bug it exists
+     * to prevent — it slides the card up to sit under the name instead.
+     */
+    private void placeWeatherCard() {
+        if (weatherCard == null || heroShelf == null || heroName == null) return;
+        if (weatherCard.getHeight() == 0) return;   // not measured yet
+        // The name's laid-out width, falling back to its paint's measurement when the text was
+        // set this same frame (getWidth() still reports the previous width then).
+        int nameW = heroName.getWidth();
+        if (nameW == 0) nameW = Math.round(heroName.getPaint().measureText(heroName.getText().toString()));
+        if (nameW == 0) return;
+        float x = heroShelf.getX() + nameW + 18 * density;
+        // just past the name
+        float maxX = root.getWidth() - weatherCard.getWidth() - 56 * density;
+        if (x > maxX) x = Math.max(55 * density, maxX);
+        float y = heroShelf.getY() + heroName.getHeight() / 2f - weatherCard.getHeight() / 2f;
+        // A card whose left edge lands inside the name would be drawn over the words. The name is
+        // capped short of this room, so it only happens when a name still overruns the cap; drop
+        // the card below the name's line rather than over it.
+        float nameRight = heroShelf.getX() + nameW;
+        if (x < nameRight + 18 * density) {
+            x = Math.max(55 * density, Math.min(x, maxX));
+            y = heroShelf.getY() + heroName.getHeight() + 12 * density;
+        }
+        weatherCard.setX(x);
+        weatherCard.setY(y);
+        android.util.Log.i("WxPlace", "shelfX=" + heroShelf.getX() + " nameW=" + nameW
+                + " cardW=" + weatherCard.getWidth() + " rootW=" + root.getWidth()
+                + " -> x=" + x + " maxX=" + maxX);
+    }
+
+    /**
+     * Shows or hides the card with the shelf. It holds a reading but is only drawn where it has a
+     * place: on the name's line while the shelf is up, gone with the shelf when focus leaves the
+     * dock.
+     */
+    private void showWeatherCard(boolean show) {
+        if (weatherCard == null) return;
+        weatherCard.animate().cancel();
+        if (show) {
+            if (!weatherCard.hasReading()) return;   // nothing to show yet
+            // Visible first, then placed: placeWeatherCard used to bail out on the card still being
+            // GONE, so the card landed at 0,0 on top of the name instead of beside it.
+            weatherCard.setVisibility(View.VISIBLE);
+            placeWeatherCard();
+            if (reducedMotion || weatherCard.getAlpha() == 1f) weatherCard.setAlpha(1f);
+            else weatherCard.animate().alpha(1f).setDuration(200).start();
+        } else if (weatherCard.getVisibility() == View.VISIBLE) {
+            weatherCard.animate().alpha(0f).setDuration(reducedMotion ? 100 : 160)
+                    .withEndAction(() -> weatherCard.setVisibility(View.GONE)).start();
+        }
+    }
+
     private void alignTopButtons() {
         // This runs on every layout pass, which during a grid scroll is every frame, so it keeps
         // its views and rectangles rather than looking them up or allocating each time.
@@ -1224,6 +1387,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (!heroShown) return;
         heroShown = false;
         heroShelf.animate().alpha(0f).setDuration(reducedMotion ? 100 : 160).start();
+        showWeatherCard(false);
     }
 
     /**
